@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  auth-service:
+    image: auth-service:dev
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=dev-db
+    depends_on:
+      - dev-db
+
+  dev-db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass

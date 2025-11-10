@@ -1,0 +1,89 @@
+media/
+├── images/
+│   ├── uploads/
+│   │   ├── temp/
+│   │   └── permanent/
+│   ├── processed/
+│   │   ├── webp/
+│   │   ├── thumbnails/
+│   │   └── optimized/
+│   └── categories/
+│       ├── products/
+│       ├── banners/
+│       └── content/
+├── videos/
+│   ├── raw/
+│   ├── encoded/
+│   └── thumbnails/
+└── documents/
+    ├── pdf/
+    ├── word/
+    └── excel/
+
+/*media-manager.js*/
+
+class MediaManager {
+  constructor() {
+    this.supportedFormats = {
+      images: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+      videos: ['mp4', 'avi', 'mov', 'webm'],
+      documents: ['pdf', 'doc', 'docx', 'xls', 'xlsx']
+    };
+  }
+
+  async processUpload(file, category = 'general') {
+    const fileType = this.getFileType(file);
+    
+    switch (fileType) {
+      case 'image':
+        return await this.processImage(file, category);
+      case 'video':
+        return await this.processVideo(file, category);
+      case 'document':
+        return await this.processDocument(file, category);
+      default:
+        throw new Error('Type de fichier non supporté');
+    }
+  }
+
+  async processImage(file, category) {
+    const optimizations = {
+      quality: 85,
+      format: 'webp',
+      sizes: [
+        { width: 1920, height: 1080, suffix: 'large' },
+        { width: 800, height: 600, suffix: 'medium' },
+        { width: 400, height: 300, suffix: 'small' },
+        { width: 150, height: 150, suffix: 'thumbnail' }
+      ]
+    };
+
+    const processedVersions = {};
+    
+    for (const size of optimizations.sizes) {
+      processedVersions[size.suffix] = await this.resizeImage(
+        file, 
+        size.width, 
+        size.height, 
+        optimizations
+      );
+    }
+
+    return {
+      original: file.name,
+      versions: processedVersions,
+      metadata: await this.extractMetadata(file),
+      category: category
+    };
+  }
+
+  getFileType(file) {
+    const extension = file.name.split('.').pop().toLowerCase();
+    
+    if (this.supportedFormats.images.includes(extension)) return 'image';
+    if (this.supportedFormats.videos.includes(extension)) return 'video';
+    if (this.supportedFormats.documents.includes(extension)) return 'document';
+    
+    return 'unknown';
+  }
+}

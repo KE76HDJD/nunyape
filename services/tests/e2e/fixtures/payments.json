@@ -1,0 +1,60 @@
+{
+  "valid_payment": {
+    "amount": 99.99,
+    "currency": "USD",
+    "payment_method": "credit_card",
+    "customer_id": "cus_123456789",
+    "order_id": "ord_987654321",
+    "description": "Premium subscription payment"
+  },
+  "invalid_payment_amount": {
+    "amount": -50.00,
+    "currency": "USD",
+    "payment_method": "credit_card",
+    "customer_id": "cus_123456789",
+    "order_id": "ord_987654321"
+  },
+  "payment_with_metadata": {
+    "amount": 149.99,
+    "currency": "EUR",
+    "payment_method": "paypal",
+    "customer_id": "cus_abcdef123",
+    "order_id": "ord_xyz789",
+    "description": "Enterprise plan",
+    "metadata": {
+      "invoice_id": "inv_2024_001",
+      "tax_amount": 29.99,
+      "discount_applied": 0.0
+    }
+  },
+  "refund_request": {
+    "payment_id": "pay_123456789",
+    "amount": 50.00,
+    "reason": "Customer requested partial refund"
+  },
+  "webhook_event": {
+    "event_type": "payment.succeeded",
+    "payment_id": "pay_123456789",
+    "data": {
+      "amount": 99.99,
+      "currency": "USD",
+      "status": "succeeded"
+    },
+    "signature": "whsec_123456789"
+  },
+  "payment_methods": [
+    {
+      "type": "credit_card",
+      "card": {
+        "number": "4242424242424242",
+        "exp_month": 12,
+        "exp_year": 2025,
+        "cvc": "123"
+      }
+    },
+    {
+      "type": "paypal",
+      "email": "customer@example.com"
+    }
+  ]
+}

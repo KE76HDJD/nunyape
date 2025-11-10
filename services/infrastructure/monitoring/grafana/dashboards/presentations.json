@@ -1,0 +1,27 @@
+{
+  "dashboard": {
+    "title": "Business Presentations",
+    "panels": [
+      {
+        "title": "Monthly Revenue",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(payment_amount_total)",
+            "legendFormat": "Total Revenue"
+          }
+        ]
+      },
+      {
+        "title": "Active Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "active_users_count",
+            "legendFormat": "Active Users"
+          }
+        ]
+      }
+    ]
+  }
+}

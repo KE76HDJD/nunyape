@@ -1,0 +1,27 @@
+{
+  "dashboard": {
+    "title": "Services Overview",
+    "panels": [
+      {
+        "title": "Service Response Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])",
+            "legendFormat": "{{service}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m]) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ]
+      }
+    ]
+  }
+}

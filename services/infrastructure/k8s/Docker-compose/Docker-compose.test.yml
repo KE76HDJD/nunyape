@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  auth-service:
+    image: auth-service:test
+    environment:
+      - DB_HOST=test-db
+    depends_on:
+      - test-db
+
+  test-db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass

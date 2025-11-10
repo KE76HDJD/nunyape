@@ -1,0 +1,39 @@
+import logging
+import json
+from datetime import datetime
+
+class PaymentLogger:
+    def __init__(self):
+        self.logger = logging.getLogger('payment-gateway')
+        
+    def log_payment_attempt(self, payment_data):
+        log_entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'event': 'payment_attempt',
+            'payment_id': payment_data.get('payment_id'),
+            'amount': payment_data.get('amount'),
+            'currency': payment_data.get('currency'),
+            'status': 'attempted'
+        }
+        self.logger.info('Payment attempt', extra=log_entry)
+    
+    def log_payment_success(self, payment_id, transaction_id):
+        log_entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'event': 'payment_success',
+            'payment_id': payment_id,
+            'transaction_id': transaction_id,
+            'status': 'success'
+        }
+        self.logger.info('Payment successful', extra=log_entry)
+    
+    def log_payment_failure(self, payment_id, error_code, error_message):
+        log_entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'event': 'payment_failure',
+            'payment_id': payment_id,
+            'error_code': error_code,
+            'error_message': error_message,
+            'status': 'failed'
+        }
+        self.logger.error('Payment failed', extra=log_entry)

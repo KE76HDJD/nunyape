@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  auth-service:
+    image: auth-service:prod
+    restart: always
+    environment:
+      - DB_HOST=prod-db
+    depends_on:
+      - prod-db
+
+  prod-db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: produser
+      POSTGRES_PASSWORD: prodpass

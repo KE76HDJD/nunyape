@@ -1,0 +1,656 @@
+version: '3.8'
+
+services:
+  # === INFRASTRUCTURE DE BASE ===
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: password123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:6
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: analytics
+    volumes:
+      - mongodb_data:/data/db
+      - ./database/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # === SERVICES CŒUR ===
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth_service
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your_super_secret_jwt_key_change_in_production
+      - JWT_EXPIRATION=3600
+      - BILLING_SERVICE_URL=http://billing-service:8002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  avatar-service:
+    build:
+      context: ./avatar-service
+      dockerfile: Dockerfile
+    container_name: avatar_service
+    ports:
+      - "8001:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - MEDIA_SERVICE_URL=http://media-service:8004
+      - AUTH_SERVICE_URL=http://auth-service:8000
+    volumes:
+      - avatar_uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  billing-service:
+    build:
+      context: ./billing-service
+      dockerfile: Dockerfile
+    container_name: billing_service
+    ports:
+      - "8002:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    container_name: analytics_service
+    ports:
+      - "8003:8000"
+    environment:
+      - ENVIRONMENT=production
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/analytics
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+    depends_on:
+      - mongodb
+      - redis
+      - auth-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  media-service:
+    build:
+      context: ./media-service
+      dockerfile: Dockerfile
+    container_name: media_service
+    ports:
+      - "8004:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - UPLOAD_PATH=/app/uploads
+    volumes:
+      - media_uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # === SERVICES DE PAIEMENT ===
+  payment-gateway:
+    build:
+      context: ./payment-gateway
+      dockerfile: Dockerfile
+    container_name: payment_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - BILLING_SERVICE_URL=http://billing-service:8002
+      - PAYMENT_ROUTER_URL=http://payment-router:8082
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+      - billing-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  payment-router:
+    build:
+      context: ./payment-router
+      dockerfile: Dockerfile
+    container_name: payment_router
+    ports:
+      - "8082:8082"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+      - payment-gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # === ADAPTATEURS DE PAIEMENT ===
+  adapter-stripe:
+    build:
+      context: ./adapter-stripe
+      dockerfile: Dockerfile
+    container_name: adapter_stripe
+    ports:
+      - "8083:8080"
+    environment:
+      - ENVIRONMENT=production
+      - STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+      - STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+      - WEBHOOK_SERVICE_URL=http://webhook-service:8090
+    depends_on:
+      - payment-gateway
+      - webhook-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  adapter-paypal:
+    build:
+      context: ./adapter-paypal
+      dockerfile: Dockerfile
+    container_name: adapter_paypal
+    ports:
+      - "8084:8080"
+    environment:
+      - ENVIRONMENT=production
+      - PAYPAL_CLIENT_ID=your_paypal_client_id
+      - PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+      - PAYPAL_WEBHOOK_ID=your_paypal_webhook_id
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+      - WEBHOOK_SERVICE_URL=http://webhook-service:8090
+    depends_on:
+      - payment-gateway
+      - webhook-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  adapter-mtn:
+    build:
+      context: ./adapter-mtn
+      dockerfile: Dockerfile
+    container_name: adapter_mtn
+    ports:
+      - "8085:8080"
+    environment:
+      - ENVIRONMENT=production
+      - MTN_API_KEY=your_mtn_api_key
+      - MTN_API_SECRET=your_mtn_api_secret
+      - MTN_SUBSCRIPTION_KEY=your_mtn_subscription_key
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+    depends_on:
+      - payment-gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  adapter-orange:
+    build:
+      context: ./adapter-orange
+      dockerfile: Dockerfile
+    container_name: adapter_orange
+    ports:
+      - "8086:8080"
+    environment:
+      - ENVIRONMENT=production
+      - ORANGE_API_KEY=your_orange_api_key
+      - ORANGE_API_SECRET=your_orange_api_secret
+      - ORANGE_MERCHANT_KEY=your_orange_merchant_key
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+    depends_on:
+      - payment-gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  adapter-flooz:
+    build:
+      context: ./adapter-flooz
+      dockerfile: Dockerfile
+    container_name: adapter_flooz
+    ports:
+      - "8087:8080"
+    environment:
+      - ENVIRONMENT=production
+      - FLOOZ_API_KEY=your_flooz_api_key
+      - FLOOZ_API_SECRET=your_flooz_api_secret
+      - FLOOZ_MERCHANT_ID=your_flooz_merchant_id
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+    depends_on:
+      - payment-gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  adapter-mixx:
+    build:
+      context: ./adapter-mixx
+      dockerfile: Dockerfile
+    container_name: adapter_mixx
+    ports:
+      - "8088:8080"
+    environment:
+      - ENVIRONMENT=production
+      - MIXX_API_KEY=your_mixx_api_key
+      - MIXX_API_SECRET=your_mixx_api_secret
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+    depends_on:
+      - payment-gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  adapter-umb:
+    build:
+      context: ./adapter-umb
+      dockerfile: Dockerfile
+    container_name: adapter_umb
+    ports:
+      - "8089:8080"
+    environment:
+      - ENVIRONMENT=production
+      - UMB_API_KEY=your_umb_api_key
+      - UMB_API_SECRET=your_umb_api_secret
+      - UMB_MERCHANT_ID=your_umb_merchant_id
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+    depends_on:
+      - payment-gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # === SERVICES MÉTIER ===
+  presentation-service:
+    build:
+      context: ./presentation-service
+      dockerfile: Dockerfile
+    container_name: presentation_service
+    ports:
+      - "8090:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - MEDIA_SERVICE_URL=http://media-service:8004
+      - WEBSOCKET_PING_INTERVAL=20
+      - WEBSOCKET_PING_TIMEOUT=20
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+      - media-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  qa-service:
+    build:
+      context: ./qa-service
+      dockerfile: Dockerfile
+    container_name: qa_service
+    ports:
+      - "8091:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - KNOWLEDGE_BASE_PATH=/app/data/knowledge
+      - NLP_MODEL_NAME=en_core_web_sm
+    volumes:
+      - qa_data:/app/data
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  webhook-service:
+    build:
+      context: ./webhook-service
+      dockerfile: Dockerfile
+    container_name: webhook_service
+    ports:
+      - "8092:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+      - STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
+      - PAYPAL_WEBHOOK_ID=your_paypal_webhook_id
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+      - payment-gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # === FRONTEND & GATEWAY ===
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend_app
+    ports:
+      - "3000:3000"
+    environment:
+      - ENVIRONMENT=production
+      - REACT_APP_API_URL=http://localhost:80
+      - REACT_APP_AUTH_URL=http://auth-service:8000
+      - REACT_APP_WS_URL=ws://localhost:80
+    depends_on:
+      - gateway
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: api_gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - ENVIRONMENT=production
+      - AUTH_SERVICE_URL=http://auth-service:8000
+      - PAYMENT_GATEWAY_URL=http://payment-gateway:8080
+      - PRESENTATION_SERVICE_URL=http://presentation-service:8090
+      - QA_SERVICE_URL=http://qa-service:8091
+      - MEDIA_SERVICE_URL=http://media-service:8004
+      - AVATAR_SERVICE_URL=http://avatar-service:8001
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf
+      - ./gateway/conf.d:/etc/nginx/conf.d
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - auth-service
+      - payment-gateway
+      - presentation-service
+      - qa-service
+      - media-service
+      - avatar-service
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # === MONITORING & OBSERVABILITY ===
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # === BACKUP SERVICE ===
+  backup-service:
+    build:
+      context: ./backups
+      dockerfile: Dockerfile
+    container_name: backup_service
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://appuser:password123@postgres:5432/appdb
+      - MONGODB_URL=mongodb://admin:password123@mongodb:27017/analytics
+      - BACKUP_PATH=/app/backups
+      - AWS_ACCESS_KEY_ID=your_aws_access_key
+      - AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+      - AWS_BUCKET_NAME=your_backup_bucket
+    volumes:
+      - backup_data:/app/backups
+    depends_on:
+      - postgres
+      - mongodb
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  avatar_uploads:
+    driver: local
+  media_uploads:
+    driver: local
+  qa_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  backup_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,53 @@
+avatars/
+├── default/
+│   ├── default-avatar.png
+│   └── default-profile.jpg
+├── templates/
+│   ├── male/
+│   ├── female/
+│   └── neutral/
+└── processed/
+    ├── thumbnails/
+    └── optimized/
+
+/*avatar uploader*/
+
+class AvatarUploader {
+  constructor() {
+    this.allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    this.maxSize = 5 * 1024 * 1024; // 5MB
+  }
+
+  async processAvatar(file) {
+    // Validation
+    if (!this.validateFile(file)) {
+      throw new Error('Type ou taille de fichier non valide');
+    }
+
+    // Création de thumbnails
+    const thumbnails = await this.generateThumbnails(file);
+    
+    // Optimisation
+    const optimized = await this.optimizeImage(file);
+    
+    return {
+      original: file,
+      thumbnails,
+      optimized
+    };
+  }
+
+  generateThumbnails(file) {
+    return new Promise((resolve) => {
+      const sizes = [32, 64, 128, 256];
+      const thumbnails = {};
+      
+      sizes.forEach(size => {
+        // Logique de redimensionnement
+        thumbnails[`${size}x${size}`] = this.resizeImage(file, size, size);
+      });
+      
+      resolve(thumbnails);
+    });
+  }
+}

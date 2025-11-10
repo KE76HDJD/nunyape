@@ -1,0 +1,110 @@
+{
+  "admin_user": {
+    "email": "admin@testcompany.com",
+    "first_name": "System",
+    "last_name": "Administrator",
+    "password": "AdminSecurePass123!",
+    "role": "admin",
+    "permissions": ["read", "write", "delete", "manage_users"],
+    "metadata": {
+      "department": "IT",
+      "employee_id": "EMP001",
+      "two_factor_enabled": true
+    }
+  },
+  "premium_user": {
+    "email": "premium.user@testcompany.com",
+    "first_name": "Premium",
+    "last_name": "Customer",
+    "password": "PremiumPass123!",
+    "role": "premium",
+    "subscription_tier": "premium",
+    "payment_method": "credit_card",
+    "metadata": {
+      "company": "Acme Corp",
+      "monthly_spend_limit": 5000,
+      "features": ["advanced_analytics", "priority_support", "custom_themes"]
+    }
+  },
+  "regular_user": {
+    "email": "regular.user@testcompany.com",
+    "first_name": "Regular",
+    "last_name": "User",
+    "password": "RegularPass123!",
+    "role": "user",
+    "subscription_tier": "basic",
+    "metadata": {
+      "signup_source": "website",
+      "newsletter_subscribed": true,
+      "trial_ends_at": "2024-12-31T23:59:59Z"
+    }
+  },
+  "api_user": {
+    "email": "api@integration.com",
+    "first_name": "API",
+    "last_name": "Integration",
+    "password": "ApiIntegrationPass123!",
+    "role": "api_client",
+    "permissions": ["read", "write"],
+    "metadata": {
+      "client_id": "api_client_123",
+      "rate_limit": 1000,
+      "webhook_url": "https://api.client.com/webhooks"
+    }
+  },
+  "users_bulk": [
+    {
+      "email": "user1@test.com",
+      "first_name": "Alice",
+      "last_name": "Johnson",
+      "password": "TempPass123!",
+      "role": "user"
+    },
+    {
+      "email": "user2@test.com",
+      "first_name": "Bob",
+      "last_name": "Smith",
+      "password": "TempPass123!",
+      "role": "user"
+    },
+    {
+      "email": "user3@test.com",
+      "first_name": "Carol",
+      "last_name": "Davis",
+      "password": "TempPass123!",
+      "role": "user"
+    },
+    {
+      "email": "user4@test.com",
+      "first_name": "David",
+      "last_name": "Wilson",
+      "password": "TempPass123!",
+      "role": "user"
+    },
+    {
+      "email": "user5@test.com",
+      "first_name": "Eva",
+      "last_name": "Brown",
+      "password": "TempPass123!",
+      "role": "user"
+    }
+  ],
+  "user_roles": {
+    "admin": {
+      "permissions": ["*"],
+      "features": ["all_features"]
+    },
+    "premium": {
+      "permissions": ["read", "write", "export", "analytics"],
+      "features": ["premium_templates", "advanced_analytics", "custom_domains"]
+    },
+    "user": {
+      "permissions": ["read", "write"],
+      "features": ["basic_templates", "standard_analytics"]
+    },
+    "viewer": {
+      "permissions": ["read"],
+      "features": ["view_only"]
+    }
+  }
+}

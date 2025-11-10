@@ -1,0 +1,63 @@
+cache/
+├── redis/
+│   └── config.json
+├── memory/
+│   └── strategies.js
+└── file-cache/
+    ├── sessions/
+    ├── api-responses/
+    └── rendered-views/
+
+   /* config.json*/
+
+{
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": null,
+    "db": 0,
+    "keyPrefix": "app:",
+    "ttl": 3600
+  },
+  "strategies": {
+    "user_sessions": {
+      "ttl": 86400,
+      "maxSize": 1000
+    },
+    "api_cache": {
+      "ttl": 300,
+      "maxSize": 10000
+    },
+    "static_assets": {
+      "ttl": 2592000,
+      "maxSize": 50000
+    }
+  }
+}
+
+/* strategies.js*/
+
+{
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": null,
+    "db": 0,
+    "keyPrefix": "app:",
+    "ttl": 3600
+  },
+  "strategies": {
+    "user_sessions": {
+      "ttl": 86400,
+      "maxSize": 1000
+    },
+    "api_cache": {
+      "ttl": 300,
+      "maxSize": 10000
+    },
+    "static_assets": {
+      "ttl": 2592000,
+      "maxSize": 50000
+    }
+  }
+}

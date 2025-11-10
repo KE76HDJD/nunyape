@@ -1,0 +1,80 @@
+{
+  "valid_presentation": {
+    "title": "Test Presentation",
+    "description": "This is a test presentation for E2E testing",
+    "theme": "modern",
+    "tags": ["test", "e2e", "presentation"]
+  },
+  "presentation_with_slides": {
+    "title": "Multi-slide Presentation",
+    "description": "Presentation with multiple slides for testing",
+    "theme": "dark",
+    "slides": [
+      {
+        "title": "Introduction",
+        "content": "Welcome to our presentation",
+        "slide_type": "title",
+        "order": 1,
+        "metadata": {
+          "background": "blue",
+          "transition": "fade"
+        }
+      },
+      {
+        "title": "Agenda",
+        "content": "1. Overview\n2. Features\n3. Conclusion",
+        "slide_type": "content",
+        "order": 2
+      },
+      {
+        "title": "Demo",
+        "content": "Live demonstration",
+        "slide_type": "content",
+        "order": 3,
+        "metadata": {
+          "has_demo": true
+        }
+      }
+    ]
+  },
+  "update_presentation": {
+    "title": "Updated Presentation Title",
+    "description": "Updated description for testing",
+    "status": "published",
+    "theme": "classic"
+  },
+  "streaming_events": {
+    "slide_change": {
+      "type": "slide_change",
+      "presentation_id": "pres_test_123",
+      "slide_number": 2,
+      "user_id": "user_test_456"
+    },
+    "annotation": {
+      "type": "annotation",
+      "presentation_id": "pres_test_123",
+      "data": {
+        "x": 100,
+        "y": 200,
+        "color": "#FF0000",
+        "tool": "pen"
+      },
+      "user_id": "user_test_456"
+    },
+    "poll": {
+      "type": "poll",
+      "presentation_id": "pres_test_123",
+      "data": {
+        "question": "What is your favorite feature?",
+        "options": ["Real-time", "Collaboration", "Ease of use"],
+        "duration": 60
+      }
+    },
+    "chat_message": {
+      "type": "chat_message",
+      "presentation_id": "pres_test_123",
+      "user_id": "user_test_456",
+      "message": "This is a test message"
+    }
+  }
+}
