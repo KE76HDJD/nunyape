@@ -19,13 +19,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copie des fichiers de dépendances
-COPY requirements.txt .
-
 # Installation des dépendances Python
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
-
+#RUN pip install --upgrade pip && \
 # Copie du code de l'application
 COPY . .
 

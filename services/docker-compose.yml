@@ -606,7 +606,7 @@ services:
     restart: unless-stopped
 
   # === BACKUP SERVICE ===
-  backup-service:
+  backups:
     build:
       context: ./backups
       dockerfile: Dockerfile

@@ -1,5 +1,5 @@
 from flask import Flask
-from routes import flooz_bp
+from app.routes import flooz_bp
 import os
 import logging
 
